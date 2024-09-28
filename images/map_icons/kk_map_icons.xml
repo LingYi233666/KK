@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Atlas>
+	<Texture filename="kk_map_icons.tex" />
+	<Elements>
+		<Element name="k_k.tex" u1="0.001" u2="0.4755625" v2="0.999" v1="0.516625" variant="" />
+		<Element name="k_k_humanlike.tex" u1="0.4775625" u2="0.9755625" v2="0.999" v1="0.501" variant="" />
+		<Element name="k_k_nightmare.tex" u1="0.001" u2="0.499" v2="0.499" v1="0.001" variant="" />
+		<Element name="k_k_repaired.tex" u1="0.501" u2="0.9599375" v2="0.499" v1="0.001" variant="" />
+	</Elements>
+</Atlas>
