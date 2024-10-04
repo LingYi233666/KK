@@ -1,14 +1,14 @@
 local CHINESE_CODE = {
-    ["zh"]=true,
-    ["zhr"]=true,
-    ["zht"]=true,
-    ["chs"]=true,
+	["zh"] = true,
+	["zhr"] = true,
+	["zht"] = true,
+	["chs"] = true,
 }
 local function KK_SETSTRING(chs, en)
-    return CHINESE_CODE[locale] and chs or en
+	return CHINESE_CODE[locale] and chs or en
 end
 
-name = "自律人偶-K_K"
+name = "自律人偶-K_K (Development)"
 description = KK_SETSTRING([[
 	画师:无影水镜
 	代码:HPMY（Rainbow）

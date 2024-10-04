@@ -25,6 +25,7 @@ local function fx()
     inst.Light:SetIntensity(.9)
     inst.Light:SetFalloff(.9)
     inst.Light:SetColour(1, 1, 1)
+    inst.Light:Enable(false)
 
     inst.entity:SetPristine()
 
@@ -33,7 +34,7 @@ local function fx()
     end
 
     inst.persists = false
-    inst:DoTaskInTime(1,function() if inst.parent == nil then inst:Remove() end end)
+    inst:DoTaskInTime(1, function() if inst.parent == nil then inst:Remove() end end)
 
     return inst
 end

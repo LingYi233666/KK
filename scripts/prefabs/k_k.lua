@@ -1,4 +1,3 @@
-
 local MakePlayerCharacter = require "prefabs/player_common"
 
 
@@ -22,7 +21,7 @@ local MOISTURETRACK_TIMERNAME = "moisturetrackingupdate"
 
 local function initiate_moisture_update(inst)
     if not inst.components.timer:TimerExists(MOISTURETRACK_TIMERNAME) then
-        inst.components.timer:StartTimer(MOISTURETRACK_TIMERNAME, TUNING.WX78_MOISTUREUPDATERATE*FRAMES)
+        inst.components.timer:StartTimer(MOISTURETRACK_TIMERNAME, TUNING.WX78_MOISTUREUPDATERATE * FRAMES)
     end
 end
 
@@ -50,10 +49,10 @@ local function moisturetrack_update(inst)
 
     if inst._moisture_steps >= TUNING.WX78_MOISTURESTEPTRIGGER then
         local damage_per_second = easing.inSine(
-                current_moisture - TUNING.WX78_MINACCEPTABLEMOISTURE,
-                TUNING.WX78_MIN_MOISTURE_DAMAGE,
-                TUNING.WX78_PERCENT_MOISTURE_DAMAGE,
-                inst.components.moisture:GetMaxMoisture() - TUNING.WX78_MINACCEPTABLEMOISTURE
+            current_moisture - TUNING.WX78_MINACCEPTABLEMOISTURE,
+            TUNING.WX78_MIN_MOISTURE_DAMAGE,
+            TUNING.WX78_PERCENT_MOISTURE_DAMAGE,
+            inst.components.moisture:GetMaxMoisture() - TUNING.WX78_MINACCEPTABLEMOISTURE
         )
         local seconds_per_update = TUNING.WX78_MOISTUREUPDATERATE / 30
 
@@ -127,6 +126,19 @@ local function OnEat(inst, food)
     end
 end
 
+local function CustomCombatDamage(inst, target, weapon, multiplier, mount)
+    if mount == nil then
+        if weapon ~= nil and weapon:HasTag("shadow_item") then
+            -- TODO: Skill tree double damage
+            return 1
+        else
+            return 1
+        end
+    end
+
+    return 1
+end
+
 local function spawnchargedlight(inst)
     if not inst._kk_charged_light then
         inst._kk_charged_light = SpawnPrefab("kk_cane_light")
@@ -152,13 +164,13 @@ local function OnCharged(inst)
     inst:DoTaskInTime(0, function() inst.components.timer:StartTimer("KK_CHARGED", CHARGED_LAST) end)
 
     local chargeable_items = inst.components.inventory:FindItems(function(item) return item:HasTag("kk_chargeable") end)
-    for _,target in pairs(chargeable_items) do
+    for _, target in pairs(chargeable_items) do
         if target.components.finiteuses ~= nil then
             local percent = target.components.finiteuses:GetPercent()
-            target.components.finiteuses:SetPercent(math.min(percent+0.05, 1))
+            target.components.finiteuses:SetPercent(math.min(percent + 0.05, 1))
         elseif target.components.fueled ~= nil then
             local percent = target.components.fueled:GetPercent()
-            target.components.fueled:SetPercent(math.min(percent+0.05, 1))  
+            target.components.fueled:SetPercent(math.min(percent + 0.05, 1))
         end
     end
 end
@@ -180,7 +192,7 @@ local function OnLightningStrike(inst)
             OnCharged(inst)
             local mult = TUNING.ELECTRIC_WET_DAMAGE_MULT * inst.components.moisture:GetMoisturePercent()
             local damage = TUNING.LIGHTNING_DAMAGE + mult * TUNING.LIGHTNING_DAMAGE
-            inst.components.health:DoDelta(-damage*0.25, false, "lightning")
+            inst.components.health:DoDelta(-damage * 0.25, false, "lightning")
         end
     end
 end
@@ -241,6 +253,8 @@ local function RemoveSkinsBuff(inst, skin)
         inst.components.locomotor:RemoveExternalSpeedMultiplier(inst, "KK_SKINS_NIGHTMARE")
         inst.components.combat:SetAttackPeriod(TUNING.WILSON_ATTACK_PERIOD)
         inst.components.sanity.get_equippable_dappernessfn = nil
+
+        inst._nightmare_vision:set(false)
     end
 end
 
@@ -297,16 +311,19 @@ local function OnStateChanged(inst, data)
     local skins = data and data.kk_skins
     local newskins = data and data.newskins
 
-    if inst.kk_changestate then      
+    if inst.kk_changestate then
         inst:RemoveEventCallback("animqueueover", inst.kk_changestate)
         inst.kk_changestate = nil
     end
 
-    if data ~= nil then 
+    if data ~= nil then
         if data.fx then
-            local fx = SpawnPrefab(type(data.fx)=="string" and data.fx or "collapse_small")
-            if fx then
-                fx.Transform:SetPosition(inst.Transform:GetWorldPosition())
+            if type(data.fx) == "string" then
+                SpawnAt(data.fx, inst)
+            elseif type(data.fx) == "table" then
+                for _, fxname in pairs(data.fx) do
+                    SpawnAt(fxname, inst)
+                end
             end
         end
     end
@@ -314,22 +331,24 @@ local function OnStateChanged(inst, data)
     if newskins and skins then
         RemoveSkinsBuff(inst)
         if skins == "humanlike" then
-            inst:DoTaskInTime(0, function() 
+            inst:DoTaskInTime(0, function()
                 if not inst.components.timer:TimerExists("KK_SKINS_HUMANLIKE") then
                     inst.components.timer:StartTimer("KK_SKINS_HUMANLIKE", SKINS_HUMANLIKE_LAST)
                 end
                 if not inst.components.timer:TimerExists("KK_SKINS_CAUTION") then
-                    inst.components.timer:StartTimer("KK_SKINS_CAUTION", SKINS_HUMANLIKE_LAST*(1-SKINS_CAUTION_PERCENT))
-                end 
+                    inst.components.timer:StartTimer("KK_SKINS_CAUTION",
+                        SKINS_HUMANLIKE_LAST * (1 - SKINS_CAUTION_PERCENT))
+                end
             end)
         elseif skins == "nightmare" then
-            inst:DoTaskInTime(0, function() 
+            inst:DoTaskInTime(0, function()
                 if not inst.components.timer:TimerExists("KK_SKINS_NIGHTMARE") then
                     inst.components.timer:StartTimer("KK_SKINS_NIGHTMARE", SKINS_NIGHTMARE_LAST)
                 end
                 if not inst.components.timer:TimerExists("KK_SKINS_CAUTION") then
-                    inst.components.timer:StartTimer("KK_SKINS_CAUTION", SKINS_NIGHTMARE_LAST*(1-SKINS_CAUTION_PERCENT))
-                end 
+                    inst.components.timer:StartTimer("KK_SKINS_CAUTION",
+                        SKINS_NIGHTMARE_LAST * (1 - SKINS_CAUTION_PERCENT))
+                end
             end)
         end
     end
@@ -338,7 +357,7 @@ local function OnStateChanged(inst, data)
     if _skin then
         --inst.components.skinner:SetSkinMode(_skin)
         inst.kk_skins = _skin
-        inst.components.skinner:SetSkinName("k_k_".._skin)
+        inst.components.skinner:SetSkinName("k_k_" .. _skin)
         if not inst:HasTag("kk_skins") then
             inst:AddTag("kk_skins")
         end
@@ -374,8 +393,11 @@ local function OnStateChanged(inst, data)
             inst.components.grue:AddImmunity("KK_SKINS_NIGHTMARE")
         end
         inst.components.locomotor:SetExternalSpeedMultiplier(inst, "kk_charged", 1.25)
-        inst.components.combat:SetAttackPeriod(TUNING.WILSON_ATTACK_PERIOD*0.675)
+        inst.components.combat:SetAttackPeriod(TUNING.WILSON_ATTACK_PERIOD * 0.675)
         inst.components.sanity.get_equippable_dappernessfn = GetEquippableDapperness
+
+        -- Darkvision while in nightmare skins
+        inst._nightmare_vision:set(true)
     elseif inst.kk_state == "repaired" then
         inst.MiniMapEntity:SetIcon("k_k_repaired.tex")
     elseif inst.kk_state == "normal" then
@@ -426,7 +448,8 @@ local function OnStateChanged(inst, data)
         end
 
         inst.components.playervision:SetCustomCCTable(KK_INSANITY_COLOURCUBES)
-        inst:DoTaskInTime(.1, function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, true) end)
+        inst:DoTaskInTime(.1,
+            function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, true) end)
     elseif inst.kk_state == "repaired" then
         inst.components.skinner:SetSkinMode("repaired_skin")
 
@@ -471,18 +494,19 @@ local function OnStateChanged(inst, data)
             inst:AddTag("kk_repaired")
         end
         if data and data.delay and data.delay > 0 then
-            inst:DoTaskInTime(data.delay, function() 
+            inst:DoTaskInTime(data.delay, function()
                 inst.components.playervision:SetCustomCCTable(nil)
-                SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) 
+                SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil)
             end)
         else
             inst.components.playervision:SetCustomCCTable(nil)
-            inst:DoTaskInTime(.1, function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) end)
+            inst:DoTaskInTime(.1,
+                function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) end)
         end
-        
     elseif inst.kk_state == "ghost" then
         inst.components.playervision:SetCustomCCTable(nil)
-        inst:DoTaskInTime(.1, function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) end)
+        inst:DoTaskInTime(.1,
+            function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) end)
     end
 end
 
@@ -498,8 +522,12 @@ local function OnTimerFinished(inst, data)
     elseif data.name == "KK_CHARGED" then
         StopCharged(inst)
     elseif data.name ~= "KK_SKINS_CAUTION" and string.match(data.name, "KK_SKINS_.*") then
+        local fx = { "shadow_puff_large_front" }
+        if inst.kk_skins == "nightmare" then
+            fx = JoinArrays(fx, { "statue_transition", "statue_transition_2" })
+        end
         RemoveSkins(inst)
-        inst:PushEvent("kk_statechanged", {onload=false, norefreshstate=true, fx="shadow_puff_large_front"})
+        inst:PushEvent("kk_statechanged", { onload = false, norefreshstate = true, fx = fx })
     elseif data.name == "KK_SKINS_CAUTION" then
         if inst.components.talker ~= nil then
             inst.components.talker:Say(STRINGS.KK_COATING_CAUTION)
@@ -516,8 +544,8 @@ local function OnLSD(inst, data)
         local product = SpawnPrefab("gears")
         product.Transform:SetPosition(inst:GetPosition():Get())
         if product.Physics then
-            local angle = math.random()*2*PI
-            product.Physics:SetVel(2*math.cos(angle), 10, 2*math.sin(angle))
+            local angle = math.random() * 2 * PI
+            product.Physics:SetVel(2 * math.cos(angle), 10, 2 * math.sin(angle))
         end
         if inst.components.talker then
             inst.components.talker:Say(KK_SETSTRING("过分了!", "That's too much!"))
@@ -534,11 +562,11 @@ local function onbecamehuman(inst, data)
     if not onload then
         inst.kk_state = "normal"
         if not inst.kk_changestate then
-            inst.kk_changestate = function() OnStateChanged(inst, {onload=false}) end
+            inst.kk_changestate = function() OnStateChanged(inst, { onload = false }) end
         end
         inst:ListenForEvent("animqueueover", inst.kk_changestate)
     else
-        OnStateChanged(inst, {onload=true})
+        OnStateChanged(inst, { onload = true })
     end
 end
 
@@ -558,9 +586,10 @@ local function onbecameghost(inst, data)
             inst:RemoveTag("kk_repaired")
         end
         inst.components.playervision:SetCustomCCTable(nil)
-        inst:DoTaskInTime(.1, function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) end)
+        inst:DoTaskInTime(.1,
+            function() SendModRPCToClient(CLIENT_MOD_RPC[KK_MODNAME]["darkvision"], inst.userid, nil) end)
     else
-        OnStateChanged(inst, {onload=true})
+        OnStateChanged(inst, { onload = true })
     end
 end
 
@@ -597,12 +626,12 @@ local function onload(inst, data)
     inst:ListenForEvent("ms_becameghost", onbecameghost)
 
     if inst:HasTag("playerghost") then
-        onbecameghost(inst, {onload=true})
+        onbecameghost(inst, { onload = true })
     else
-        onbecamehuman(inst, {onload=true})
+        onbecamehuman(inst, { onload = true })
     end
 
-    if data ~= nil then    
+    if data ~= nil then
         if data._kk_health then
             inst.components.health:SetCurrentHealth(data._kk_health)
         end
@@ -617,9 +646,18 @@ local function onload(inst, data)
     end
 end
 
-local common_postinit = function(inst) 
-	-- Minimap icon
-	inst.MiniMapEntity:SetIcon( "k_k.tex" )
+local function OnNightmareVisionDirty(inst)
+    local val = inst._nightmare_vision:value()
+    if val then
+        inst.components.playervision:PushForcedNightVision(inst, 2, KK_INSANITY_COLOURCUBES, false)
+    else
+        inst.components.playervision:PopForcedNightVision(inst)
+    end
+end
+
+local common_postinit = function(inst)
+    -- Minimap icon
+    inst.MiniMapEntity:SetIcon("k_k.tex")
 
     inst:AddTag("k_k")
     inst:AddTag("pighatekk")
@@ -660,15 +698,22 @@ local common_postinit = function(inst)
 
     inst._humanlike_last = net_ushortint(inst.GUID, "k_k._humanlike_last")
     inst._nightmare_last = net_ushortint(inst.GUID, "k_k._nightmare_last")
+
+    -- While in nightmare state, use nightvision
+    inst._nightmare_vision = net_bool(inst.GUID, "k_k._nightmare_vision", "nightmare_vision_dirty")
+    inst._nightmare_vision:set(false)
+
+    inst:ListenForEvent("nightmare_vision_dirty", OnNightmareVisionDirty)
+    OnNightmareVisionDirty(inst)
 end
 
 local master_postinit = function(inst)
-	inst.soundsname = "wx78"
+    inst.soundsname = "wx78"
 
-	inst.components.foodaffinity:AddPrefabAffinity("waffles", TUNING.AFFINITY_15_CALORIES_LARGE)
-	inst.components.health:SetMaxHealth(TUNING.K_K_HEALTH)
-	inst.components.hunger:SetMax(TUNING.K_K_HUNGER)
-	inst.components.sanity:SetMax(TUNING.K_K_SANITY)
+    inst.components.foodaffinity:AddPrefabAffinity("waffles", TUNING.AFFINITY_15_CALORIES_LARGE)
+    inst.components.health:SetMaxHealth(TUNING.K_K_HEALTH)
+    inst.components.hunger:SetMax(TUNING.K_K_HUNGER)
+    inst.components.sanity:SetMax(TUNING.K_K_SANITY)
 
     inst.components.combat.damagemultiplier = 1
 
@@ -688,7 +733,7 @@ local master_postinit = function(inst)
                 inst.components.timer:StopTimer(name)
                 local new_time = math.min(time_left + max * pct, max)
                 inst.components.timer:StartTimer(name, new_time)
-                local caution_time = max*(1-SKINS_CAUTION_PERCENT)
+                local caution_time = max * (1 - SKINS_CAUTION_PERCENT)
                 if new_time >= caution_time then
                     inst.components.timer:StopTimer("KK_SKINS_CAUTION")
                     inst.components.timer:StartTimer("KK_SKINS_CAUTION", caution_time)
@@ -697,7 +742,7 @@ local master_postinit = function(inst)
         end
     end
 
-    inst:DoPeriodicTask(6 * FRAMES, function() 
+    inst:DoPeriodicTask(6 * FRAMES, function()
         if inst.components.timer:TimerExists("KK_SKINS_HUMANLIKE") then
             if inst._humanlike_last then
                 inst._humanlike_last:set(inst.components.timer:GetTimeLeft("KK_SKINS_HUMANLIKE"))
@@ -721,11 +766,11 @@ local master_postinit = function(inst)
     if inst.components.temperature ~= nil then
         local old_SetTemperature = inst.components.temperature.SetTemperature
         inst.components.temperature.SetTemperature = function(self, value, ...)
-            local delta = value-self.current
+            local delta = value - self.current
             if delta > 0 then
                 value = self.current + delta * 1.5
             end
-            return old_SetTemperature(self,value, ...)
+            return old_SetTemperature(self, value, ...)
         end
     end
 
@@ -741,7 +786,7 @@ local master_postinit = function(inst)
 
                 return health_delta, hunger_delta, sanity_delta
             end
-            hunger_delta = food.kk_eat_hunger or (hunger_delta > 0 and hunger_delta/2 or 0)
+            hunger_delta = food.kk_eat_hunger or (hunger_delta > 0 and hunger_delta / 2 or 0)
             if food.components.edible.foodtype ~= FOODTYPE.GEARS then
                 health_delta = 0
             end
@@ -760,7 +805,7 @@ local master_postinit = function(inst)
 
         table.insert(inst.components.eater.preferseating, FOODTYPE.NIGHTMAREFUEL)
         table.insert(inst.components.eater.caneat, FOODTYPE.NIGHTMAREFUEL)
-        inst:AddTag(FOODTYPE.NIGHTMAREFUEL.."_eater")
+        inst:AddTag(FOODTYPE.NIGHTMAREFUEL .. "_eater")
     end
 
     if inst.components.combat ~= nil then
@@ -792,6 +837,8 @@ local master_postinit = function(inst)
                 or nil
             ) or string
         end
+
+        inst.components.combat.customdamagemultfn = CustomCombatDamage
     end
 
     local SetSkinName_old = inst.components.skinner.SetSkinName
@@ -800,7 +847,7 @@ local master_postinit = function(inst)
             local _skin, find = skin_name:gsub("k_k_(.*)", "%1")
             if find and find > 0 then
                 if inst.kk_skins ~= _skin or (_skin == "none" and inst.kk_skins ~= nil) then
-                    skin_name = "k_k_"..(inst.kk_skins or "none")
+                    skin_name = "k_k_" .. (inst.kk_skins or "none")
                     --return
                 end
             end
@@ -857,7 +904,7 @@ local master_postinit = function(inst)
 
     inst:AddComponent("sanityaura")
     inst.components.sanityaura.aura = 0
-    inst.components.sanityaura.max_distsq = 8*8
+    inst.components.sanityaura.max_distsq = 8 * 8
     inst.components.sanityaura.fallofffn = function() return 1 end
 
     inst:AddComponent("kk_light")
@@ -871,11 +918,10 @@ local master_postinit = function(inst)
     inst:WatchWorldState("cycles", ondaycomplete)
 
     inst:ListenForEvent("xxxwumalsdspell", OnLSD)
-	----------------------------------------------------------------
-	inst.OnSave = onsave
-	inst.OnLoad = onload
+    ----------------------------------------------------------------
+    inst.OnSave = onsave
+    inst.OnLoad = onload
     inst.OnNewSpawn = onload
-	
 end
 
 return MakePlayerCharacter("k_k", prefabs, assets, common_postinit, master_postinit, start_inv)

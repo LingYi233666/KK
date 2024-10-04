@@ -1,18 +1,18 @@
 ----------------------------------------------------------------
 local function kk_action(sg)
-    local old_caseaoe=sg.actionhandlers[ACTIONS.CASTAOE].deststate
-    sg.actionhandlers[ACTIONS.CASTAOE].deststate=
-    function(inst,action)
-        if action.invobject then
-            if action.invobject:HasTag("kk_dlc") then 
-                return "mine_start"
+    local old_caseaoe = sg.actionhandlers[ACTIONS.CASTAOE].deststate
+    sg.actionhandlers[ACTIONS.CASTAOE].deststate =
+        function(inst, action)
+            if action.invobject then
+                if action.invobject:HasTag("kk_dlc") then
+                    return "mine_start"
+                end
             end
+            return old_caseaoe(inst, action)
         end
-        return old_caseaoe(inst,action)
-    end
 
     local old_eat = sg.actionhandlers[ACTIONS.EAT].deststate
-    sg.actionhandlers[ACTIONS.EAT] = ActionHandler(ACTIONS.EAT,function(inst, action)
+    sg.actionhandlers[ACTIONS.EAT] = ActionHandler(ACTIONS.EAT, function(inst, action)
         local obj = action.target or action.invobject
         if obj and obj.components.edible ~= nil and obj.components.edible.foodtype == FOODTYPE.NIGHTMAREFUEL then
             return "eat"
@@ -23,6 +23,46 @@ end
 
 AddStategraphPostInit("wilson", function(sg) kk_action(sg) end)
 AddStategraphPostInit("wilson_client", function(sg) kk_action(sg) end)
+
+
+
+AddStategraphPostInit("wilson", function(sg)
+    local old_ATTACK = sg.actionhandlers[ACTIONS.ATTACK].deststate
+
+    sg.actionhandlers[ACTIONS.ATTACK].deststate = function(inst, action, ...)
+        local old_result = old_ATTACK(inst, action, ...)
+        local weapon = inst.components.combat ~= nil and inst.components.combat:GetWeapon() or nil
+
+        if old_result == "attack" then
+            if weapon then
+                if weapon.prefab == "kk_chainsword" then
+                    return "kk_attack_chainsword"
+                end
+            end
+        end
+
+        return old_result
+    end
+end)
+
+AddStategraphPostInit("wilson_client", function(sg)
+    local old_ATTACK = sg.actionhandlers[ACTIONS.ATTACK].deststate
+
+    sg.actionhandlers[ACTIONS.ATTACK].deststate = function(inst, action, ...)
+        local old_result = old_ATTACK(inst, action, ...)
+        local equip = inst.replica.inventory:GetEquippedItem(EQUIPSLOTS.HANDS)
+
+        if old_result == "attack" then
+            if equip then
+                if equip.prefab == "kk_chainsword" then
+                    return "kk_attack_chainsword"
+                end
+            end
+        end
+
+        return old_result
+    end
+end)
 
 local function ForceStopHeavyLifting(inst)
     if inst.components.inventory:IsHeavyLifting() then
@@ -49,7 +89,7 @@ local function SetSleeperSleepState(inst)
     end
     if inst.components.sanity ~= nil then
         inst.components.sanity.externalmodifiers:SetModifier(inst, TUNING.DAPPERNESS_LARGE, "kk_dormancy")
-    end   
+    end
 end
 
 local function SetSleeperAwakeState(inst)
@@ -67,12 +107,12 @@ local function SetSleeperAwakeState(inst)
     end
     if inst.components.sanity ~= nil then
         inst.components.sanity.externalmodifiers:RemoveModifier(inst, "kk_dormancy")
-    end   
+    end
 end
 
-local kk_dormancy_stop = State{
+local kk_dormancy_stop = State {
     name = "kk_dormancy_stop",
-    tags = { "waking", "nomorph", "nodangle"},
+    tags = { "waking", "nomorph", "nodangle" },
 
     onenter = function(inst)
         inst.AnimState:PlayAnimation("emote_pst_sit2")
@@ -97,7 +137,7 @@ local kk_dormancy_stop = State{
 AddStategraphState("wilson", kk_dormancy_stop)
 AddStategraphState("wilson_client", kk_dormancy_stop)
 
-local kk_dormancy = State{
+local kk_dormancy = State {
     name = "kk_dormancy",
     tags = { "knockout", "nopredict", "nomorph", "kk_dormancy", "notalking" },
     onenter = function(inst)
@@ -126,8 +166,8 @@ local kk_dormancy = State{
             inst.sg:AddStateTag("idle")
         end),
     },
-        
-    events=
+
+    events =
     {
         EventHandler("firedamage", function(inst)
             if inst.sg.statemem.sleeping and not inst.sg:HasStateTag("drowning") then
@@ -160,209 +200,209 @@ local kk_dormancy = State{
 
 AddStategraphState("wilson", kk_dormancy)
 
-local kk_coating = State{
-        name = "kk_coating",
-        tags = { "inwardrobe", "busy", "nopredict", "silentmorph", "temp_invincible"},
+local kk_coating = State {
+    name = "kk_coating",
+    tags = { "inwardrobe", "busy", "nopredict", "silentmorph", "temp_invincible" },
 
-        onenter = function(inst, delay)
-            ForceStopHeavyLifting(inst)
-            inst:Hide()
-            inst.DynamicShadow:Enable(false)
-            inst.sg.statemem.isplayerhidden = true
+    onenter = function(inst, delay)
+        ForceStopHeavyLifting(inst)
+        inst:Hide()
+        inst.DynamicShadow:Enable(false)
+        inst.sg.statemem.isplayerhidden = true
 
-            inst.components.locomotor:Stop()
-            inst.components.locomotor:Clear()
-            inst:ClearBufferedAction()
+        inst.components.locomotor:Stop()
+        inst.components.locomotor:Clear()
+        inst:ClearBufferedAction()
 
-            inst.AnimState:PlayAnimation("idle_wardrobe1_pre")
-            inst.AnimState:PushAnimation("idle_wardrobe1_loop", true)
+        inst.AnimState:PlayAnimation("idle_wardrobe1_pre")
+        inst.AnimState:PushAnimation("idle_wardrobe1_loop", true)
 
-            if inst.components.playercontroller ~= nil then
-                inst.components.playercontroller:RemotePausePrediction()
-                inst.components.playercontroller:EnableMapControls(false)
-                inst.components.playercontroller:Enable(false)
+        if inst.components.playercontroller ~= nil then
+            inst.components.playercontroller:RemotePausePrediction()
+            inst.components.playercontroller:EnableMapControls(false)
+            inst.components.playercontroller:Enable(false)
+        end
+        inst.components.inventory:Hide()
+        inst:PushEvent("ms_closepopups")
+        inst:ShowActions(false)
+
+        inst.sg:SetTimeout(delay or 31 * FRAMES)
+    end,
+
+    ontimeout = function(inst)
+        inst.AnimState:PlayAnimation("jumpout_wardrobe")
+        inst:Show()
+        inst.DynamicShadow:Enable(true)
+        inst.sg.statemem.isplayerhidden = nil
+        inst.sg.statemem.task = inst:DoTaskInTime(4.5 * FRAMES, function()
+            inst.sg.statemem.task = nil
+            inst.SoundEmitter:PlaySound("dontstarve/movement/bodyfall_dirt")
+        end)
+    end,
+
+    events =
+    {
+        EventHandler("animover", function(inst)
+            if not inst.sg.statemem.isplayerhidden and inst.AnimState:AnimDone() then
+                inst.sg:GoToState("idle")
             end
-            inst.components.inventory:Hide()
-            inst:PushEvent("ms_closepopups")
-            inst:ShowActions(false)
+        end),
+    },
 
-            inst.sg:SetTimeout(delay or 31*FRAMES)
-        end,
-
-        ontimeout = function(inst)
-            inst.AnimState:PlayAnimation("jumpout_wardrobe")
+    onexit = function(inst)
+        if inst.sg.statemem.task ~= nil then
+            inst.sg.statemem.task:Cancel()
+            inst.sg.statemem.task = nil
+        end
+        if inst.sg.statemem.isplayerhidden then
             inst:Show()
             inst.DynamicShadow:Enable(true)
             inst.sg.statemem.isplayerhidden = nil
-            inst.sg.statemem.task = inst:DoTaskInTime(4.5*FRAMES, function()
-                inst.sg.statemem.task = nil
-                inst.SoundEmitter:PlaySound("dontstarve/movement/bodyfall_dirt")
-            end)
-        end,
-
-        events =
-        {
-            EventHandler("animover", function(inst)
-                if not inst.sg.statemem.isplayerhidden and inst.AnimState:AnimDone() then
-                    inst.sg:GoToState("idle")
-                end
-            end),
-        },
-
-        onexit = function(inst)
-            if inst.sg.statemem.task ~= nil then
-                inst.sg.statemem.task:Cancel()
-                inst.sg.statemem.task = nil
-            end
-            if inst.sg.statemem.isplayerhidden then
-                inst:Show()
-                inst.DynamicShadow:Enable(true)
-                inst.sg.statemem.isplayerhidden = nil
-            end
-            if inst.components.playercontroller ~= nil then
-                inst.components.playercontroller:EnableMapControls(true)
-                inst.components.playercontroller:Enable(true)
-            end
-            inst.components.inventory:Show()
-            inst:ShowActions(true)
-        end,
-    }
+        end
+        if inst.components.playercontroller ~= nil then
+            inst.components.playercontroller:EnableMapControls(true)
+            inst.components.playercontroller:Enable(true)
+        end
+        inst.components.inventory:Show()
+        inst:ShowActions(true)
+    end,
+}
 
 AddStategraphState("wilson", kk_coating)
 
-local kk_cabin = State{
-        name = "kk_cabin",
-        tags = { "kk_cabin", "nopredict", "silentmorph", "noattack"},
+local kk_cabin = State {
+    name = "kk_cabin",
+    tags = { "kk_cabin", "nopredict", "silentmorph", "noattack" },
 
-        onenter = function(inst)
-            ForceStopHeavyLifting(inst)
-            inst:Hide()
-            inst.DynamicShadow:Enable(false)
-            inst.sg.statemem.isplayerhidden = true
+    onenter = function(inst)
+        ForceStopHeavyLifting(inst)
+        inst:Hide()
+        inst.DynamicShadow:Enable(false)
+        inst.sg.statemem.isplayerhidden = true
 
-            inst.components.locomotor:Stop()
-            inst.components.locomotor:Clear()
-            inst:ClearBufferedAction()
+        inst.components.locomotor:Stop()
+        inst.components.locomotor:Clear()
+        inst:ClearBufferedAction()
 
-            --inst.AnimState:PlayAnimation("idle_wardrobe1_pre")
-            --inst.AnimState:PushAnimation("idle_wardrobe1_loop", true)
+        --inst.AnimState:PlayAnimation("idle_wardrobe1_pre")
+        --inst.AnimState:PushAnimation("idle_wardrobe1_loop", true)
 
-            inst.components.inventory:Hide()
-            inst:PushEvent("ms_closepopups")
-            inst:ShowActions(false)
+        inst.components.inventory:Hide()
+        inst:PushEvent("ms_closepopups")
+        inst:ShowActions(false)
 
-            if inst.Physics then
-                inst.Physics:SetCollides(false)
+        if inst.Physics then
+            inst.Physics:SetCollides(false)
+        end
+
+        if inst.kk_cabin_task ~= nil then
+            inst.kk_cabin_task:Cancel()
+            inst.kk_cabin_task = nil
+        end
+
+        inst.kk_cabin_task = inst:DoPeriodicTask(1, function()
+            if inst.components.health ~= nil then
+                if inst.components.health:GetPenaltyPercent() > 0 then
+                    inst.components.health:DeltaPenalty(-.02)
+                end
+                inst.components.health:DoDelta(3, true)
             end
-
-            if inst.kk_cabin_task ~= nil then
-                inst.kk_cabin_task:Cancel()
-                inst.kk_cabin_task = nil
+            if inst.components.sanity ~= nil then
+                inst.components.sanity:DoDelta(10 / 3, true)
             end
-
-            inst.kk_cabin_task = inst:DoPeriodicTask(1, function()
-                if inst.components.health ~= nil then
-                    if inst.components.health:GetPenaltyPercent() > 0 then
-                        inst.components.health:DeltaPenalty(-.02)
-                    end
-                    inst.components.health:DoDelta(3, true)
-                end
-                if inst.components.sanity ~= nil then
-                    inst.components.sanity:DoDelta(10/3, true)
-                end
-                if inst.components.hunger ~= nil then
-                    inst.components.hunger:DoDelta(10/3, true)
-                end
-                if inst.kk_skins == "humanlike" then
-                    inst:AddSkinLastingTime("KK_SKINS_HUMANLIKE", SKINS_HUMANLIKE_LAST, 1/60)
-                end
-            end)
-
-            if IsServer then
-                if inst.components.grue ~= nil then
-                    inst.components.grue:AddImmunity("dormancy")
-                end
-                if inst.components.talker ~= nil then
-                    inst.components.talker:IgnoreAll("dormancy")
-                end
-                if inst.components.firebug ~= nil then
-                    inst.components.firebug:Disable()
-                end
+            if inst.components.hunger ~= nil then
+                inst.components.hunger:DoDelta(10 / 3, true)
             end
-        end,
+            if inst.kk_skins == "humanlike" then
+                inst:AddSkinLastingTime("KK_SKINS_HUMANLIKE", SKINS_HUMANLIKE_LAST, 1 / 60)
+            end
+        end)
 
-        timeline =
-        {
-            TimeEvent(24 * FRAMES, function(inst)
-                inst.sg:RemoveStateTag("nopredict")
-                inst.sg:AddStateTag("idle")
-            end),
-        },
+        if IsServer then
+            if inst.components.grue ~= nil then
+                inst.components.grue:AddImmunity("dormancy")
+            end
+            if inst.components.talker ~= nil then
+                inst.components.talker:IgnoreAll("dormancy")
+            end
+            if inst.components.firebug ~= nil then
+                inst.components.firebug:Disable()
+            end
+        end
+    end,
 
-        events =
-        {
-            --[[EventHandler("animover", function(inst)
+    timeline =
+    {
+        TimeEvent(24 * FRAMES, function(inst)
+            inst.sg:RemoveStateTag("nopredict")
+            inst.sg:AddStateTag("idle")
+        end),
+    },
+
+    events =
+    {
+        --[[EventHandler("animover", function(inst)
                 if not inst.sg.statemem.isplayerhidden and inst.AnimState:AnimDone() then
                     inst.sg:GoToState("idle")
                 end
             end),]]
-        },
+    },
 
-        onexit = function(inst)
+    onexit = function(inst)
+        if inst.components.playercontroller ~= nil then
+            inst.components.playercontroller:RemotePausePrediction()
+            inst.components.playercontroller:EnableMapControls(false)
+            inst.components.playercontroller:Enable(false)
+        end
+
+        if inst.Physics then
+            local pt = inst:GetPosition()
+            inst.Physics:Teleport(pt.x, 0, pt.z)
+            inst.Physics:SetCollides(true)
+        end
+
+        if inst.kk_cabin ~= nil and inst.kk_cabin.components.kk_dormancy ~= nil then
+            inst.kk_cabin.components.kk_dormancy:Stop(inst)
+        end
+
+        if inst.kk_cabin_task ~= nil then
+            inst.kk_cabin_task:Cancel()
+            inst.kk_cabin_task = nil
+        end
+
+        inst.components.inventory:Show()
+        inst:ShowActions(true)
+        inst.AnimState:PlayAnimation("jumpout_wardrobe")
+        inst:DoTaskInTime(.8, function()
+            inst:Show()
+            inst.DynamicShadow:Enable(true)
+
             if inst.components.playercontroller ~= nil then
-                inst.components.playercontroller:RemotePausePrediction()
-                inst.components.playercontroller:EnableMapControls(false)
-                inst.components.playercontroller:Enable(false)
+                inst.components.playercontroller:EnableMapControls(true)
+                inst.components.playercontroller:Enable(true)
             end
+            inst.SoundEmitter:PlaySound("dontstarve/movement/bodyfall_dirt")
+        end)
 
-            if inst.Physics then
-                local pt = inst:GetPosition()
-                inst.Physics:Teleport(pt.x, 0, pt.z)
-                inst.Physics:SetCollides(true)
+        if IsServer then
+            if inst.components.grue ~= nil then
+                inst.components.grue:RemoveImmunity("dormancy")
             end
-
-            if inst.kk_cabin ~= nil and inst.kk_cabin.components.kk_dormancy ~= nil then
-                inst.kk_cabin.components.kk_dormancy:Stop(inst)
+            if inst.components.talker ~= nil then
+                inst.components.talker:StopIgnoringAll("dormancy")
             end
-
-            if inst.kk_cabin_task ~= nil then
-                inst.kk_cabin_task:Cancel()
-                inst.kk_cabin_task = nil
+            if inst.components.firebug ~= nil then
+                inst.components.firebug:Enable()
             end
-
-            inst.components.inventory:Show()
-            inst:ShowActions(true)
-            inst.AnimState:PlayAnimation("jumpout_wardrobe")
-            inst:DoTaskInTime(.8, function()
-                inst:Show()
-                inst.DynamicShadow:Enable(true)
-
-                if inst.components.playercontroller ~= nil then
-                    inst.components.playercontroller:EnableMapControls(true)
-                    inst.components.playercontroller:Enable(true)
-                end
-                inst.SoundEmitter:PlaySound("dontstarve/movement/bodyfall_dirt")
-            end)
-
-            if IsServer then
-                if inst.components.grue ~= nil then
-                    inst.components.grue:RemoveImmunity("dormancy")
-                end
-                if inst.components.talker ~= nil then
-                    inst.components.talker:StopIgnoringAll("dormancy")
-                end
-                if inst.components.firebug ~= nil then
-                    inst.components.firebug:Enable()
-                end
-            end
-        end,
-    }
+        end
+    end,
+}
 
 AddStategraphState("wilson", kk_cabin)
 
-local kk_change_nightmare_pre = State{
+local kk_change_nightmare_pre = State {
     name = "kk_change_nightmare_pre",
-    tags = {"busy", "nopredict", "temp_invincible", "nomorph", "nodangle"},
+    tags = { "busy", "nopredict", "temp_invincible", "nomorph", "nodangle" },
 
     onenter = function(inst)
         ForceStopHeavyLifting(inst)
@@ -374,6 +414,7 @@ local kk_change_nightmare_pre = State{
             inst.AnimState:PlayAnimation("fall_off")
             inst.SoundEmitter:PlaySound("dontstarve/beefalo/saddle/dismount")
         else
+            SpawnAt("kk_nightmare_transform_fx", inst)
             inst.AnimState:PlayAnimation("mindcontrol_pre")
         end
     end,
@@ -402,9 +443,9 @@ local kk_change_nightmare_pre = State{
 
 AddStategraphState("wilson", kk_change_nightmare_pre)
 
-local kk_change_nightmare = State{
+local kk_change_nightmare = State {
     name = "kk_change_nightmare",
-    tags = {"busy", "nopredict", "temp_invincible", "nomorph", "nodangle"},
+    tags = { "busy", "nopredict", "temp_invincible", "nomorph", "nodangle" },
 
     onenter = function(inst)
         inst.AnimState:PlayAnimation("mindcontrol_loop")
@@ -414,8 +455,16 @@ local kk_change_nightmare = State{
     ontimeout = function(inst)
         inst.AnimState:PlayAnimation("mindcontrol_pst")
         inst.sg:GoToState("idle", true)
-        inst:PushEvent("kk_statechanged", {onload=false, norefreshstate=true, newskins=true, kk_skins="nightmare", 
-            forcenightmare=true, fx="statue_transition_2", delay=0, lightoff=true})
+        inst:PushEvent("kk_statechanged", {
+            onload = false,
+            norefreshstate = true,
+            newskins = true,
+            kk_skins = "nightmare",
+            forcenightmare = true,
+            fx = "statue_transition_2",
+            delay = 0,
+            lightoff = true
+        })
         if inst.components.kk_light ~= nil then
             inst.components.kk_light:UpdateAnim()
         end
@@ -423,6 +472,10 @@ local kk_change_nightmare = State{
 }
 
 AddStategraphState("wilson", kk_change_nightmare)
+
+-- TODO: finish kk_chainsword attack SG
+-- local kk_attack_chainsword_server =
+-- AddStategraphState("wilson",kk_attack_chainsword_server)
 
 --[[AddAction("KK_LIGHT", "Light", function(act)
     if act.doer and act.doer.components.kk_light then
@@ -458,7 +511,7 @@ AddComponentAction("SCENE", "kk_light", canlight)]]
 
 
 AddAction("KK_CHARGE", KK_SETSTRING("充能", "충전", "Charge"), function(act)
-    local target = act.target 
+    local target = act.target
     local doer = act.doer
     if act.invobject and act.invobject.components.kk_charger and act.invobject.components.kk_charger:CanCharge(doer, target) then
         return act.invobject.components.kk_charger:Charge(doer, target)
@@ -481,7 +534,7 @@ AddComponentAction("USEITEM", "kk_charger", cancharge)
 AddPrefabPostInit("nightstick", function(inst) inst:AddTag("kk_chargeable") end)
 
 AddAction("KK_DORMANCY", KK_SETSTRING("进入", "들어오다", "Enter"), function(act)
-    local target = act.target 
+    local target = act.target
     local doer = act.doer
     if doer and target and target.components.kk_dormancy then
         return target.components.kk_dormancy:Start(doer)
